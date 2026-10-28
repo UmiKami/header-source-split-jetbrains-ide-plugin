@@ -8,8 +8,8 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
+import com.intellij.openapi.fileEditor.ex.FileEditorOpenRequest
 import com.intellij.openapi.fileEditor.impl.EditorWindow
-import com.intellij.openapi.fileEditor.impl.FileEditorOpenOptions
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.util.concurrency.AppExecutorUtil
@@ -53,12 +53,15 @@ class HeaderSourceOpenListener(private val project: Project) : FileEditorManager
         arranging = true
         try {
             if (windows.size <= 1) {
+                // Every argument is passed so this binds to split(...) itself, not split$default, whose
+                // signature changes whenever the platform adds a parameter (binary incompatibility).
                 fileWindow.split(
                     orientation = settings.layout.splitOrientation,
                     forceSplit = true,
                     virtualFile = counterpart,
                     focusNew = false,
                     fileIsSecondaryComponent = fileGoesFirst,
+                    forceFocus = false,
                 )
             }
             else {
@@ -90,13 +93,25 @@ class HeaderSourceOpenListener(private val project: Project) : FileEditorManager
         val fileTarget = if (fileGoesFirst) sorted.first() else sorted.last()
         val counterpartTarget = if (fileGoesFirst) sorted.last() else sorted.first()
 
-        manager.openFile(counterpart, counterpartTarget, FileEditorOpenOptions(requestFocus = false))
-        manager.openFile(file, fileTarget, FileEditorOpenOptions(requestFocus = true))
+        manager.openFile(counterpart, openRequest(counterpartTarget, requestFocus = false))
+        manager.openFile(file, openRequest(fileTarget, requestFocus = true))
         if (fileTarget != fileWindow) {
             // fileOpened only fires for a file that wasn't open anywhere, so this closes nothing the user had before.
-            fileWindow.closeFile(file)
+            fileWindow.closeFile(file, disposeIfNeeded = true)
         }
     }
+
+    // All arguments are explicit (platform defaults) so the call binds to the real constructor, not the
+    // synthetic default-arguments one, which breaks when the platform adds a field.
+    private fun openRequest(window: EditorWindow, requestFocus: Boolean) = FileEditorOpenRequest(
+        targetWindow = window,
+        openMode = null,
+        selectAsCurrent = true,
+        reuseOpen = false,
+        usePreviewTab = false,
+        requestFocus = requestFocus,
+        pin = false,
+    )
 
     private fun position(window: EditorWindow): Point {
         val component = window.selectedComposite?.component ?: return Point(0, 0)
