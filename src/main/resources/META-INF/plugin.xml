@@ -1,0 +1,24 @@
+<idea-plugin>
+    <id>dev.umikami.headersourcesplit</id>
+    <name>Header/Source Split</name>
+    <vendor>UmiKami</vendor>
+    <description><![CDATA[
+    When a C/C++ header (.h, .hpp, ...) is opened, its source file (.cpp, ...) is opened next to it in a split,
+    and vice versa. Split orientation and which file goes first are configurable under
+    <b>Settings | Tools | Header/Source Split</b>.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <applicationConfigurable parentId="tools"
+                                 instance="dev.umikami.headersourcesplit.HeaderSourceSplitConfigurable"
+                                 id="dev.umikami.headersourcesplit"
+                                 displayName="Header/Source Split"/>
+    </extensions>
+
+    <projectListeners>
+        <listener class="dev.umikami.headersourcesplit.HeaderSourceOpenListener"
+                  topic="com.intellij.openapi.fileEditor.FileEditorManagerListener"/>
+    </projectListeners>
+</idea-plugin>
