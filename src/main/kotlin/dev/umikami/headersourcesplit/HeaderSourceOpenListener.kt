@@ -8,7 +8,6 @@ import com.intellij.openapi.application.ReadAction
 import com.intellij.openapi.fileEditor.FileEditorManager
 import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.ex.FileEditorManagerEx
-import com.intellij.openapi.fileEditor.ex.FileEditorOpenRequest
 import com.intellij.openapi.fileEditor.impl.EditorWindow
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -93,25 +92,21 @@ class HeaderSourceOpenListener(private val project: Project) : FileEditorManager
         val fileTarget = if (fileGoesFirst) sorted.first() else sorted.last()
         val counterpartTarget = if (fileGoesFirst) sorted.last() else sorted.first()
 
-        manager.openFile(counterpart, openRequest(counterpartTarget, requestFocus = false))
-        manager.openFile(file, openRequest(fileTarget, requestFocus = true))
+        openIn(manager, counterpartTarget, counterpart, focus = false)
+        openIn(manager, fileTarget, file, focus = true)
         if (fileTarget != fileWindow) {
             // fileOpened only fires for a file that wasn't open anywhere, so this closes nothing the user had before.
             fileWindow.closeFile(file, disposeIfNeeded = true)
         }
     }
 
-    // All arguments are explicit (platform defaults) so the call binds to the real constructor, not the
-    // synthetic default-arguments one, which breaks when the platform adds a field.
-    private fun openRequest(window: EditorWindow, requestFocus: Boolean) = FileEditorOpenRequest(
-        targetWindow = window,
-        openMode = null,
-        selectAsCurrent = true,
-        reuseOpen = false,
-        usePreviewTab = false,
-        requestFocus = requestFocus,
-        pin = false,
-    )
+    // The platform has no stable "open in this window" API (FileEditorOpenOptions is internal, FileEditorOpenRequest
+    // was experimental and removed), so make the window current and open there with the plain public openFile.
+    private fun openIn(manager: FileEditorManagerEx, window: EditorWindow, file: VirtualFile, focus: Boolean) {
+        window.setAsCurrentWindow(focus)
+        // searchForOpen = false: open in the current window even if the file already has a tab elsewhere.
+        manager.openFile(file, focus, false)
+    }
 
     private fun position(window: EditorWindow): Point {
         val component = window.selectedComposite?.component ?: return Point(0, 0)
